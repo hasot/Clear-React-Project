@@ -1,0 +1,87 @@
+image: priyan/node8:1.0
+
+#cache:
+#  paths:
+#    - node_modules/
+
+before_script:
+  - mkdir -m 700 -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+stages:
+  - deploy
+  - staging
+  - test
+
+Deploy Production F1:
+  script:
+    - echo $ENV_F1 | tr ' ' '\n' > ./.env
+    - npm install
+    - npm run build
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - scp -24rpC dist $DEPLOYMENT_USER@$DEPLOYMENT_F1_PROD_SERVER:/home/deploy/project/web/
+    - ssh-agent -k
+    - eval $(ssh-agent -s)
+    - echo "$SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - scp -24rpC dist $SERVER_USER@$SERVER_APP1:/home/deploy/web/
+    - sleep 10
+    - scp -24rpC dist $SERVER_USER@$SERVER_APP2:/home/deploy/web/
+    - sleep 10
+    - scp -24rpC dist $SERVER_USER@$SERVER_APP3:/home/deploy/web/
+  type: deploy
+  only:
+    - master
+  tags:
+    - docker-in-docker
+
+Deploy Staging F1:
+  script:
+    - echo $STAGE_ENV_F1 | tr ' ' '\n' > ./.env
+    - npm install
+    - npm run build
+    - ssh-agent -k
+    - eval $(ssh-agent -s)
+    - echo "$STAGING_PRIVITE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - scp -24rpCv dist $STAGING_USER@$STAGING_SERVER:/home/ubuntu/web/
+  type: staging
+  only:
+    - develop
+  tags:
+    - docker-in-docker
+
+#Deploy Production NASCAR:
+#  script:
+#    - echo $ENV_NASCAR | tr ' ' '\n' > ./.env
+#    - npm install
+#    - npm run build
+#    - node -v
+#    - npm -v
+#    - cat ./.env
+#    - scp -24rpCB ./dist $DEPLOYMENT_USER@$DEPLOYMENT_NASCAR_PROD_SERVER:/home/deploy/project/web/
+#    - ssh -v -o StrictHostKeyChecking=no $DEPLOYMENT_USER@$DEPLOYMENT_NASCAR_PROD_SERVER 'docker-compose -f /home/deploy/project/docker-compose.yml exec -T nginx nginx -s reload'
+#  type: deploy
+#  only:
+#    - master
+#  tags:
+#    - docker-in-docker
+
+#Deploy Production Nascar:
+#  script:
+#    - echo $ENV_NASCAR > ./.env
+#    - npm install
+#    - npm run build
+#    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#    - docker build -t gitlab.ms4.work:5005/predictor/web -f ./docker/Dockerfile ./
+#    - docker push gitlab.ms4.work:5005/predictor/web
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose down -v'
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose pull'
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose up --build -d'
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose exec -T project chmod -R o+rw var/'
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose exec -T supervisor chmod -R o+rw var/'
+#    - ssh $DEPLOYMENT_USER@$DEPLOYMENT_PROD_SERVER 'cd project && docker-compose exec -T project bin/console doctrine:migrations:migrate --no-interaction'
+#  type: deploy
+#  only:
+#    - master
+  tags:
+    - office-rostov
