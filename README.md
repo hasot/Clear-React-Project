@@ -1,3 +1,3 @@
 # Clear-React-Project 
 
-include
+The repository includes reactJs + webpack + babel for easy start.
